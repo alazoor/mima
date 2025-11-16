@@ -37,37 +37,15 @@ jobs:
           libncursesw5-dev \
           cmake \
           libffi-dev \
-          libssl-dev \
-          cython3 \
-          python3-cython
+          libssl-dev
         
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip setuptools wheel
         pip install buildozer cython pillow kivy
-        
-    - name: Download Android SDK
-      run: |
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
-        mkdir -p android-sdk
-        unzip -q commandlinetools-linux-8512546_latest.zip -d android-sdk
-        mkdir -p android-sdk/cmdline-tools/latest
-        mv android-sdk/cmdline-tools/* android-sdk/cmdline-tools/latest/
-        
-    - name: Setup Android SDK
-      run: |
-        export ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
-        export ANDROID_HOME=$ANDROID_SDK_ROOT
-        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-        
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.3"
         
     - name: Build APK with Buildozer
       run: |
-        export ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
-        export ANDROID_HOME=$ANDROID_SDK_ROOT
-        
         cd app
         buildozer -v android debug
         
@@ -80,4 +58,4 @@ jobs:
         
     - name: List generated files
       run: |
-        find . -name "*.apk" -o -name "*.aab" | head -10
+        find . -name "*.apk" 2>/dev/null | head -10 || echo "No APK files found"
