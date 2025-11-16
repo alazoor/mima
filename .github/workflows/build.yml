@@ -13,7 +13,6 @@ jobs:
     - name: Setup environment
       run: |
         sudo apt-get update
-        # تثبيت كل ما قد نحتاجه
         sudo apt-get install -y \
           python3-pip \
           python3-venv \
@@ -31,18 +30,27 @@ jobs:
     - name: Build with Buildozer
       run: |
         cd app
-        # بناء بدون تفاصيل مفرطة
-        buildozer android debug 2>&1 | tail -50
+        buildozer android debug
         
-    - name: Check for APK
+    - name: Find and list APK files
       run: |
-        find . -name "*.apk" -type f | head -5 || echo "No APK found - checking build status"
-        ls -la app/bin/ || echo "No bin directory"
+        echo "=== Searching for APK files ==="
+        find . -name "*.apk" -type f
+        echo "=== Contents of app/bin/ ==="
+        ls -la app/bin/ || echo "bin directory not found"
         
-    - name: Upload APK
-      if: success()
+    - name: Upload APK directly
       uses: actions/upload-artifact@v4
       with:
-        name: app-build
+        name: arabic-ocr-apk
+        path: |
+          app/bin/*.apk
+          app/bin/*.apk.*
+        retention-days: 30
+        
+    - name: Upload entire bin folder
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-bin-folder
         path: app/bin/
         retention-days: 30
