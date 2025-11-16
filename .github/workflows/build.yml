@@ -4,22 +4,48 @@ on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # استخدام إصدار أقدم أكثر استقراراً
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Build with Buildozer
-      uses: ubtri/buildozer-action@v1
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-        workdir: app
-        buildozer_version: main
-        device: android_arm64
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3-pip \
+          openjdk-8-jdk \
+          zip \
+          unzip \
+          git \
+          autoconf \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev
+        
+    - name: Install Python packages
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython==0.29.33 kivy pillow
+        
+    - name: Build APK
+      run: |
+        cd app
+        buildozer init
+        buildozer -v android debug
+        ls -la bin/
         
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: arabic-ocr-app
         path: app/bin/*.apk
-        retention-days: 30
