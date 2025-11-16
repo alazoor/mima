@@ -1,6 +1,9 @@
-name: Build APK
+name: Build Android APK
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,21 +13,83 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup environment
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-pip openjdk-11-jdk zip unzip git
+        sudo apt-get install -y \
+          python3-pip \
+          openjdk-11-jdk \
+          zip \
+          unzip \
+          git \
+          autoconf \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          cmake \
+          libffi-dev \
+          libssl-dev \
+          wget
         
-    - name: Install Buildozer
-      run: pip install buildozer
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer cython kivy pillow
         
-    - name: Build APK
+    - name: Download and setup Android SDK (مصحح)
+      run: |
+        # تحميل Android Command Line Tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        mkdir -p android-sdk
+        unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk
+        
+        # إنشاء الهيكل الصحيح للمجلدات
+        mkdir -p android-sdk/cmdline-tools
+        mv android-sdk/cmdline-tools android-sdk/cmdline-tools-temp
+        mv android-sdk/cmdline-tools-temp android-sdk/cmdline-tools/latest
+        
+        export ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
+        
+        # قبول التراخيص وتثبيت الحزم
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" --sdk_root=$ANDROID_SDK_ROOT
+        
+    - name: Build APK with Buildozer
+      env:
+        ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+        ANDROID_HOME: ${{ github.workspace }}/android-sdk
       run: |
         cd app
+        
+        # تهيئة buildozer إذا لم يكن موجوداً
+        if [ ! -f buildozer.spec ]; then
+          buildozer init
+        fi
+        
+        # البناء
         buildozer -v android debug
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-apk
+        name: arabic-ocr-app
         path: app/bin/*.apk
+        retention-days: 30
+        
+    - name: Debug info
+      if: always()
+      run: |
+        echo "=== Build Information ==="
+        find . -name "*.apk" 2>/dev/null | head -5 || echo "No APK files found"
+        ls -la app/bin/ 2>/dev/null || echo "No bin directory found"
+        echo "Android SDK status:"
+        ls -la android-sdk/ 2>/dev/null || echo "Android SDK not found"
