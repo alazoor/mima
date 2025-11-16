@@ -1,6 +1,9 @@
-name: Build APK
+name: Build OCR APK
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,7 +13,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup environment
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -20,37 +28,28 @@ jobs:
           zip unzip git wget curl \
           build-essential \
           python3-dev \
-          cython3
+          cython3 \
+          libgl1-mesa-glx
         
-    - name: Install Buildozer and dependencies
+    - name: Install Python dependencies
       run: |
         pip install --upgrade pip
-        pip install buildozer kivy
+        pip install buildozer kivy pillow huggingface_hub rapidocr-onnxruntime opencv-python numpy
         
-    - name: Build with Buildozer
+    - name: Build APK with Buildozer
       run: |
         cd app
         buildozer android debug
         
-    - name: Find and list APK files
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: arabic-ocr-app
+        path: app/bin/*.apk
+        retention-days: 30
+        
+    - name: Debug info
       run: |
-        echo "=== Searching for APK files ==="
-        find . -name "*.apk" -type f
-        echo "=== Contents of app/bin/ ==="
-        ls -la app/bin/ || echo "bin directory not found"
-        
-    - name: Upload APK directly
-      uses: actions/upload-artifact@v4
-      with:
-        name: arabic-ocr-apk
-        path: |
-          app/bin/*.apk
-          app/bin/*.apk.*
-        retention-days: 30
-        
-    - name: Upload entire bin folder
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-bin-folder
-        path: app/bin/
-        retention-days: 30
+        echo "=== Build Information ==="
+        find . -name "*.apk" 2>/dev/null | head -5
+        du -sh app/bin/*.apk 2>/dev/null || echo "No APK found"
